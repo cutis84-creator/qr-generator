@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR 생성기</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Gmarket+Sans:wght@300;500;700&family=DM+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--ink:#1a1a2e;--paper:#f5f0e8;--accent:#e63946;--muted:#8d8074;--border:#d4cec3;}
+body{
+  background:var(--paper);color:var(--ink);font-family:'Gmarket Sans',sans-serif;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  justify-content:flex-start;padding:2rem 1rem;position:relative;overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    repeating-linear-gradient(0deg,transparent,transparent 39px,var(--border) 39px,var(--border) 40px),
+    repeating-linear-gradient(90deg,transparent,transparent 39px,var(--border) 39px,var(--border) 40px);
+  opacity:.3;pointer-events:none;
+}
+.card{
+  background:white;border:2px solid var(--ink);
+  padding:2rem 2rem 1.75rem;width:100%;max-width:460px;
+  box-shadow:6px 6px 0 var(--ink);position:relative;z-index:1;
+  animation:slideIn .5s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+h1{font-size:1.6rem;font-weight:700;letter-spacing:-.03em;margin-bottom:.15rem}
+h1 span{color:var(--accent)}
+.subtitle{font-size:.7rem;color:var(--muted);font-family:'DM Mono',monospace;
+  margin-bottom:1.5rem;letter-spacing:.04em;text-transform:uppercase}
+.section-label{
+  font-size:.68rem;font-family:'DM Mono',monospace;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;margin-top:1.25rem;
+  display:flex;align-items:center;gap:.5rem;
+}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.input-row{display:flex;gap:.5rem;margin-bottom:.25rem}
+input[type="text"]{
+  flex:1;border:2px solid var(--ink);padding:.6rem .8rem;
+  font-size:.88rem;font-family:'DM Mono',monospace;background:var(--paper);
+  outline:none;transition:box-shadow .15s;color:var(--ink);
+}
+input[type="text"]:focus{box-shadow:3px 3px 0 var(--accent)}
+input[type="text"]::placeholder{color:var(--muted)}
+.gen-btn{
+  background:var(--ink);color:white;border:2px solid var(--ink);
+  padding:.6rem 1rem;font-size:.82rem;font-family:'Gmarket Sans',sans-serif;
+  font-weight:700;cursor:pointer;transition:background .15s,transform .1s;white-space:nowrap;
+}
+.gen-btn:hover{background:var(--accent);border-color:var(--accent)}
+.gen-btn:active{transform:scale(.97)}
+.slider-row{display:flex;align-items:center;gap:.75rem}
+.slider-row label{font-size:.78rem;white-space:nowrap;color:var(--muted);font-family:'DM Mono',monospace;min-width:3rem}
+input[type="range"]{
+  flex:1;-webkit-appearance:none;appearance:none;height:3px;
+  background:var(--border);outline:none;cursor:pointer;
+}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;
+  background:var(--ink);border-radius:0;cursor:pointer;transition:background .15s;
+}
+input[type="range"]::-webkit-slider-thumb:hover{background:var(--accent)}
+.slider-val{font-size:.78rem;font-family:'DM Mono',monospace;color:var(--ink);min-width:2.5rem;text-align:right;}
+.margin-presets{display:flex;gap:.4rem}
+.mpbtn{
+  padding:.3rem .65rem;border:2px solid var(--border);background:white;
+  font-size:.72rem;font-family:'Gmarket Sans',sans-serif;cursor:pointer;
+  transition:all .15s;color:var(--muted);
+}
+.mpbtn:hover,.mpbtn.active{border-color:var(--ink);color:var(--ink);background:var(--paper)}
+.color-row{display:flex;gap:.75rem;align-items:center}
+.color-pair{display:flex;flex-direction:column;gap:.3rem;flex:1}
+.color-pair span{font-size:.7rem;color:var(--muted);font-family:'DM Mono',monospace}
+input[type="color"]{
+  width:32px;height:32px;border:2px solid var(--ink);padding:1px;cursor:pointer;background:none;
+}
+.preset-colors{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.5rem}
+.preset{
+  width:22px;height:22px;border:2px solid transparent;cursor:pointer;
+  transition:transform .15s,border-color .15s;flex-shrink:0;
+}
+.preset:hover{transform:scale(1.2);border-color:var(--ink)}
+.preset.active{border-color:var(--ink);transform:scale(1.15)}
+.qr-area{
+  display:none;flex-direction:column;align-items:center;gap:1rem;
+  margin-top:1.5rem;
+}
+.qr-frame{
+  border:2px solid var(--ink);background:white;
+  box-shadow:4px 4px 0 var(--border);position:relative;
+  transition:padding .2s ease;
+}
+.qr-frame::before,.qr-frame::after{
+  content:'';position:absolute;width:14px;height:14px;
+  border-color:var(--accent);border-style:solid;
+}
+.qr-frame::before{top:-2px;left:-2px;border-width:3px 0 0 3px}
+.qr-frame::after{bottom:-2px;right:-2px;border-width:0 3px 3px 0}
+#qrCanvas{display:block;}
+.divider{width:100%;border:none;border-top:1.5px dashed var(--border)}
+.btn-group{display:flex;gap:.4rem;width:100%;}
+.action-btn{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  gap:.35rem;padding:.55rem .4rem;border:2px solid var(--ink);background:white;
+  color:var(--ink);font-family:'Gmarket Sans',sans-serif;font-size:.75rem;
+  font-weight:500;cursor:pointer;transition:all .15s;
+}
+.action-btn:hover{background:var(--ink);color:white}
+.action-btn:active{transform:scale(.96)}
+.action-btn.reset-btn{border-color:var(--border);color:var(--muted);}
+.action-btn.reset-btn:hover{background:var(--accent);border-color:var(--accent);color:white;}
+.action-btn.copied{background:#2a9d8f;border-color:#2a9d8f;color:white}
+.action-btn svg{width:13px;height:13px;flex-shrink:0}
+.placeholder-msg{
+  color:var(--muted);font-size:.78rem;font-family:'DM Mono',monospace;
+  text-align:center;padding:1.5rem 0 .5rem;letter-spacing:.02em;
+}
+.toast{
+  position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(10px);
+  background:var(--ink);color:white;padding:.5rem 1.1rem;
+  font-size:.8rem;font-family:'DM Mono',monospace;
+  opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:100;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>QR <span>생성기</span></h1>
+  <p class="subtitle">링크 → QR 코드 즉시 변환</p>
+
+  <div class="input-row">
+    <input type="text" id="urlInput" placeholder="https://..."/>
+    <button class="gen-btn" onclick="generateQR()">생성</button>
+  </div>
+
+  <div class="section-label">크기</div>
+  <div class="slider-row">
+    <label>크기</label>
+    <input type="range" id="sizeSlider" min="120" max="400" value="220" oninput="onSizeChange(this)">
+    <span class="slider-val" id="sizeVal">220px</span>
+  </div>
+
+  <div class="section-label">여백</div>
+  <div class="margin-presets">
+    <button class="mpbtn active" onclick="setMargin(0,this)">없음</button>
+    <button class="mpbtn" onclick="setMargin(1,this)">좁게</button>
+    <button class="mpbtn" onclick="setMargin(2,this)">보통</button>
+    <button class="mpbtn" onclick="setMargin(3,this)">넓게</button>
+  </div>
+
+  <div class="section-label">색상</div>
+  <div class="color-row">
+    <div class="color-pair">
+      <span>QR 색상</span>
+      <input type="color" id="darkColor" value="#1a1a2e" oninput="onColorChange()">
+    </div>
+    <div class="color-pair">
+      <span>배경 색상</span>
+      <input type="color" id="lightColor" value="#ffffff" oninput="onColorChange()">
+    </div>
+  </div>
+  <div class="preset-colors" id="presets"></div>
+
+  <div id="placeholder" class="placeholder-msg">링크를 입력하고 생성 버튼을 누르세요</div>
+
+  <div class="qr-area" id="qrArea">
+    <div class="qr-frame" id="qrFrame">
+      <canvas id="qrCanvas"></canvas>
+    </div>
+    <hr class="divider">
+    <div class="btn-group">
+      <button class="action-btn reset-btn" onclick="resetAll()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4"/></svg>
+        초기화
+      </button>
+      <button class="action-btn" onclick="copyQR(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        복사
+      </button>
+      <button class="action-btn" onclick="downloadQR('jpeg')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        JPEG
+      </button>
+      <button class="action-btn" onclick="downloadQR('png')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        PNG
+      </button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let state = { size:220, margin:0, darkColor:'#1a1a2e', lightColor:'#ffffff', lastUrl:'' };
+
+function makeQRCanvas(url, size, dark, light) {
+  return new Promise(resolve => {
+    const tmp = document.createElement('div');
+    tmp.style.display = 'none';
+    document.body.appendChild(tmp);
+    new QRCode(tmp, {
+      text: url, width: size, height: size,
+      colorDark: dark, colorLight: light,
+      correctLevel: QRCode.CorrectLevel.H
+    });
+    setTimeout(() => {
+      const c = tmp.querySelector('canvas');
+      const img = tmp.querySelector('img');
+      const result = document.createElement('canvas');
+      result.width = size; result.height = size;
+      const ctx = result.getContext('2d');
+      if (c) ctx.drawImage(c, 0, 0);
+      else if (img) ctx.drawImage(img, 0, 0, size, size);
+      document.body.removeChild(tmp);
+      resolve(result);
+    }, 100);
+  });
+}
+
+function buildFinalCanvas(qrCanvas) {
+  const pad = state.margin * 16;
+  if (pad === 0) return qrCanvas;
+  const out = document.createElement('canvas');
+  out.width  = qrCanvas.width  + pad * 2;
+  out.height = qrCanvas.height + pad * 2;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = state.lightColor;
+  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.drawImage(qrCanvas, pad, pad);
+  return out;
+}
+
+function renderToScreen(finalCanvas) {
+  const display = document.getElementById('qrCanvas');
+  display.width  = finalCanvas.width;
+  display.height = finalCanvas.height;
+  display.getContext('2d').drawImage(finalCanvas, 0, 0);
+  const maxDisplay = 280;
+  const scale = finalCanvas.width > maxDisplay ? maxDisplay / finalCanvas.width : 1;
+  display.style.width  = (finalCanvas.width  * scale) + 'px';
+  display.style.height = (finalCanvas.height * scale) + 'px';
+}
+
+async function generateQR() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) { showToast('링크를 입력해 주세요'); return; }
+  state.lastUrl = url;
+  const qr = await makeQRCanvas(url, state.size, state.darkColor, state.lightColor);
+  renderToScreen(buildFinalCanvas(qr));
+  document.getElementById('placeholder').style.display = 'none';
+  document.getElementById('qrArea').style.display = 'flex';
+}
+
+async function setMargin(v, btn) {
+  document.querySelectorAll('.mpbtn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.margin = v;
+  if (state.lastUrl) {
+    const qr = await makeQRCanvas(state.lastUrl, state.size, state.darkColor, state.lightColor);
+    renderToScreen(buildFinalCanvas(qr));
+  }
+}
+
+function onSizeChange(el) {
+  state.size = parseInt(el.value);
+  document.getElementById('sizeVal').textContent = state.size + 'px';
+}
+
+function onColorChange() {
+  state.darkColor = document.getElementById('darkColor').value;
+  state.lightColor = document.getElementById('lightColor').value;
+  document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+}
+
+const PRESETS = [
+  {dark:'#1a1a2e',light:'#ffffff'},{dark:'#e63946',light:'#fff8f8'},
+  {dark:'#457b9d',light:'#f0f8ff'},{dark:'#2a9d8f',light:'#f0fffe'},
+  {dark:'#e9c46a',light:'#1a1a1a'},{dark:'#6a0572',light:'#f8f0ff'},
+  {dark:'#333333',light:'#f0f0f0'},{dark:'#264653',light:'#e9f5f9'},
+];
+function buildPresets() {
+  const el = document.getElementById('presets');
+  PRESETS.forEach((p, i) => {
+    const btn = document.createElement('div');
+    btn.className = 'preset' + (i===0?' active':'');
+    btn.style.background = p.dark;
+    btn.onclick = () => {
+      document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.darkColor = p.dark; state.lightColor = p.light;
+      document.getElementById('darkColor').value = p.dark;
+      document.getElementById('lightColor').value = p.light;
+    };
+    el.appendChild(btn);
+  });
+}
+buildPresets();
+
+function resetAll() {
+  state = { size:220, margin:0, darkColor:'#1a1a2e', lightColor:'#ffffff', lastUrl:'' };
+  document.getElementById('urlInput').value = '';
+  document.getElementById('sizeSlider').value = 220;
+  document.getElementById('sizeVal').textContent = '220px';
+  document.getElementById('darkColor').value = '#1a1a2e';
+  document.getElementById('lightColor').value = '#ffffff';
+  document.querySelectorAll('.mpbtn').forEach((b,i) => b.classList.toggle('active', i===0));
+  document.querySelectorAll('.preset').forEach((b,i) => b.classList.toggle('active', i===0));
+  document.getElementById('qrArea').style.display = 'none';
+  document.getElementById('placeholder').style.display = 'block';
+  document.getElementById('urlInput').focus();
+  showToast('초기화됐어요!');
+}
+
+function copyQR(btn) {
+  const canvas = document.getElementById('qrCanvas');
+  canvas.toBlob(async blob => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+      btn.classList.add('copied');
+      showToast('클립보드에 복사됐어요!');
+      setTimeout(() => btn.classList.remove('copied'), 1500);
+    } catch(e) { showToast('복사 실패 — 브라우저 권한을 확인하세요'); }
+  });
+}
+
+function downloadQR(type) {
+  const canvas = document.getElementById('qrCanvas');
+  const link = document.createElement('a');
+  link.href = canvas.toDataURL(type==='jpeg' ? 'image/jpeg' : 'image/png', 0.95);
+  link.download = 'qrcode.' + (type==='jpeg' ? 'jpg' : 'png');
+  link.click();
+  showToast(type.toUpperCase() + ' 저장 완료!');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') generateQR();
+});
+</script>
+</body>
+</html>
